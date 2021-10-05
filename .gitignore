@@ -1,0 +1,8 @@
+node_modules
+packages
+start_node_red.sh
+workspace.code-workspace
+scripts/turf
+static/config_beauty.json
+static/debug.json
+scripts/deprecated_createConfig.js

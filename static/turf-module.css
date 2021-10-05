@@ -1,0 +1,64 @@
+.select2-container {
+  width: 70% !important;
+}
+
+.select2-container .select2-selection--single {
+  height: 34px;
+}
+
+.select2-selection, .select2-selection__rendered, .select2-results__option {
+  font-family: "Helvetica Neue",Arial,Helvetica,sans-serif;
+  font-size: 14px;
+}
+
+.modal {
+  max-width: 50vw;
+}
+
+.modal table {
+  width: 100%;
+}
+
+.modal table tr:nth-child(even){background-color: #f2f2f2;}
+.modal table td, th {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+.modal table th {
+  padding-top: 3px;
+  padding-bottom: 3px;
+  text-align: left;
+  background-color: #2ECC71;
+  color: white;
+}
+
+.modal table th {
+  font-weight: normal;
+}
+
+#node-turf-info-modal-header {
+  font-weight: bolder;
+}
+
+#node-turf-info-modal a:hover, a:visited, a:link, a:active {
+  text-decoration: none;
+}
+
+#node-turf-info-modal h1 > a {
+  color: inherit;
+  text-decoration: inherit;  
+}
+
+#node-turf-info-modal a {
+  color: inherit;
+  text-decoration: inherit;  
+}
+
+.node-input-label {
+  word-break: break-all;
+}
+
+.lightgray {
+  color: lightgray;
+}

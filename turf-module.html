@@ -1,0 +1,545 @@
+<link href="turf/js/select2.min.css" rel="stylesheet" />
+<link href="turf/js/jquery.modal.css" rel="stylesheet" />
+<link href="turf/js/turf-module.css" rel="stylesheet" />
+<script src="turf/js/select2.full.min.js"></script>
+<script src="turf/js/underscore-min.js"></script>
+<script src="turf/js/jquery.modal.min.js"></script>
+<script type="text/javascript">
+  (async () => {
+    // Load Config
+    function loadConfig() {
+      return new Promise((resolve, reject) => {
+        $.getJSON("turf/js/config.json", (config) => {
+          resolve(config);
+        }); 
+      })
+    }
+    const config = await loadConfig();
+
+    // Prepare default Values
+    const defaults = {
+      "name": {
+        value: null
+      },
+      "turf-module": {
+        value: "1"
+      },
+      "meta": {
+        value: {}
+      },
+      "turf-argument-0": {
+        value: null,
+        required: true
+      },
+      "turf-argument-1": {
+        value: null,
+        required: true
+      },
+      "turf-argument-2": {
+        value: null,
+        required: true
+      },
+      "turf-argument-3": {
+        value: null,
+        required: true
+      },
+      "turf-argument-4": {
+        value: null,
+        required: true
+      },
+      "turf-argument-5": {
+        value: null,
+        required: true
+      },
+      "turf-option-0": {
+        value: null
+      },
+      "turf-option-1": {
+        value: null
+      },
+      "turf-option-2": {
+        value: null
+      },
+      "turf-option-3": {
+        value: null
+      },
+      "turf-option-4": {
+        value: null
+      },
+      "turf-option-5": {
+        value: null
+      },
+    };
+
+    RED.nodes.registerType("turf-module", {
+      category: "location",
+      color: "#2ecc71",
+      defaults: defaults,
+      inputs: 1,
+      outputs: 1,
+      icon: "file.png",
+      label: function () {
+        return this.name || "turf-module";
+      },
+      oneditsave: function() {},
+      oneditcancel: function() {
+        // Reset Meta
+        this.meta = this.oldMeta;
+
+        // Reset Attributes
+        Object.assign(this, this.oldAttributes);
+      },
+      oneditprepare: function() {
+        const node = this;
+
+        // Backup for cancel
+        node.oldMeta = node.oldMeta || {};
+        node.oldAttributes = node.oldAttributes || {};
+
+        // Init Meta
+        node.meta = node.meta || {};
+        node.meta.props = node.meta.props || {};
+
+        // Init Select Node
+        const selectNode = $('#node-input-turf-module');
+        selectNode.select2({
+          placeholder: 'Select a module',
+          data: config
+        });
+
+        // Event for Select Change
+        const parameterContainerNode = $('#node-turf-parameter-container');
+        const argumentsHeaderNode = $("#node-turf-arguments-header");
+        const argumentsContainerNode = $('#node-turf-arguments-container');
+        const optionsHeaderNode = $('#node-turf-options-header');
+        const optionsContainerNode = $('#node-turf-options-container');
+        selectNode.on('select2:select', function (e) {
+          // Get Node Data
+          const data = e.params.data;
+          
+          // Backup old attributes and meta (if user clicks cancel we can reset)
+          node.oldMeta = JSON.parse(JSON.stringify(node.meta));
+          node.oldAttributes = {};
+          _.each(node, (value, key) => {
+            if (key.includes("turf-argument") || key.includes("turf-option")) {
+              node.oldAttributes[key] = value;
+            }
+          });
+
+          // Init Meta
+          if (!node.meta.module || node.meta.module !== data.name) {
+            // Set meta Module and props
+            node.meta.module = data.name;
+            node.meta.props = {};
+
+            // Init Props for Arguments
+            _.each(data.params, (param, idx) => {
+              if (param.Argument !== "options") {
+                const propertyName = `turf-argument-${idx}`;
+                node.meta.props[propertyName] = {
+                  p: propertyName,
+                  vt: param.meta.types[0],
+                  n: param.Argument
+                };
+              }
+            })
+
+            // Init Props for Options
+            _.each(data.options, (param, idx) => {
+              const propertyName = `turf-option-${idx}`;
+              node.meta.props[propertyName] = {
+                p: propertyName,
+                vt: param.meta.types[0],
+                n: param.Prop
+              };
+            })              
+
+            // Init default values, clear not used properties and store history
+            let argumentsIndex = 0;
+            let optionsIndex = 0;
+
+            _.each(node, (value, key) => {
+
+              // Arguments
+              if (key.includes("turf-argument")) {
+
+                // Store oldAttributes for restore
+                node.oldAttributes[key] = value;
+
+                // Set Default Values
+                if (data.params && data.params[argumentsIndex] && data.params[argumentsIndex].meta) {
+                  node[key] = data.params[argumentsIndex].meta.value;
+                  argumentsIndex += 1;
+                } else {
+                  // Null for every not used key
+                  node[key] = null;
+                }
+              }
+
+              // Options
+              if (key.includes("turf-option")) {
+
+                // Store oldAttributes for restore
+                node.oldAttributes[key] = value;
+                
+                // Set Default Values
+                if (data.options && data.options[optionsIndex] && data.options[optionsIndex].meta) {
+                  node[key] = data.options[optionsIndex].meta.value;
+                  optionsIndex += 1;
+                } else {
+                  // Null for every not used key
+                  node[key] = null;
+                }
+              }
+            });
+          }
+
+          // Delete all current Parameters
+          argumentsContainerNode.empty();
+          optionsContainerNode.empty();
+
+          // Create Option or Argument DomNode Helper Function
+          function createParameterDomNode(nodeName, parameterName, meta, container, isOption, idx) {
+            const id = `node-input-${nodeName}`;
+            const el = $(`<div class="form-row">
+              <label class="node-input-label" for="node-input-name"><i class="fa fa-cog"></i> ${parameterName}</label>
+              <input class="node-property-input" type="text" id="${id}" placeholder="${parameterName}">
+              <button data-modal="#node-turf-parameter-info-modal" data-param-type="${isOption ? 'options' : 'params'}" data-param-index="${idx}" data-modal="#node-turf-parameter-info-modal" type="button" class="red-ui-button parameter-help-button"><i class="fa fa-info"></i></button>
+              <input type="hidden" id="${id}-type">
+            </div>`).appendTo(container);
+
+            // Init Typed Input
+            const typedInputNode = $(`#${id}`)
+
+            // Add Extra validation rules
+            _.each(meta.types, (type) => {
+              // Arguments
+              if (!isOption) {
+                switch (type.value) {
+                  case "turf":
+                    type.validate = function(v) {
+                      return !_.isEmpty(v)
+                    }
+                    break;
+                  default:
+                    break;
+                }
+              }
+            });
+
+            typedInputNode.typedInput({
+              types: meta.types,
+              typeField: `#${id}-type`,
+              default: (node.meta && node.meta.props && node.meta.props[nodeName] && node.meta.props[nodeName].vt) ? node.meta.props[nodeName].vt : meta.types[0]
+            });
+            
+            // Set Data and re-validate
+            if (!_.isNull(node[nodeName]) || !_.isUndefined(node[nodeName])) {
+              const value = node[nodeName];
+              typedInputNode.typedInput("value", value);
+              typedInputNode.typedInput("validate");
+            }             
+          }
+
+          // Create a DOM Element per Argument
+          !data.params ? argumentsHeaderNode.css("display", "none") : argumentsHeaderNode.css("display", "block")
+          _.each(data.params, (param, idx) => {
+            if (param.Argument !== "options") {
+              const nodeName = `turf-argument-${idx}`;
+              createParameterDomNode(nodeName, param.Argument, param.meta, argumentsContainerNode, false, idx);
+            }
+          })
+
+          // Create a DOM Element per Option
+          !data.options ? optionsHeaderNode.css("display", "none") : optionsHeaderNode.css("display", "block")
+          _.each(data.options, (option, idx) => {
+            const nodeName = `turf-option-${idx}`;
+            createParameterDomNode(nodeName, option.Prop, option.meta, optionsContainerNode, true, idx);
+          })
+
+          // Events
+          // Event for Node Input Changes
+          $(".node-property-input").on("change", function(event, type, value) {
+            const id = event.target.id;
+            const propertyName = id.replace("node-input-", "");
+            node.meta.props[propertyName].vt = type;
+          });
+
+          // Empty Modal Container
+          const nodeTurfModalContainerId = "node-turf-modal-container";
+          const nodeTurfModalContainer = $(`#${nodeTurfModalContainerId}`);
+          nodeTurfModalContainer.empty();
+
+          // Modal ID
+          const modalId = "node-turf-info-modal";
+
+          // Helper Function to generate info modal content
+          function generateInfoModalContent() {
+            // Get Data
+            const data = selectNode.select2('data')[0];
+
+            // Arguments Table
+            let argumentsTableHtmlString = "";
+            if (data.params && _.isArray(data.params) && data.params.length > 0) {
+              let argumentsTableParametersString = ""
+              _.each(data.params, (param) => {
+                argumentsTableParametersString += `
+                  <tr>
+                    <td>${param.Argument}</td>
+                    <td>${param.Type}</td>
+                    <td>${param.Description}</td>
+                  </tr>
+                `;
+              });
+              argumentsTableHtmlString = `
+                <div id="node-turf-info-modal-arguments-header">
+                  <br>
+                  <h3>Arguments</h3>
+                </div>
+                <div id="node-turf-info-modal-arguments">
+                  <table id="node-turf-info-modal-arguments-table">
+                    <tr><th>Argument</th><th>Type</th><th>Description</th></tr>
+                    ${argumentsTableParametersString}
+                  </table>
+                </div>
+                
+              `;
+            }
+
+            // Options Table
+            let optionsTableHtmlString = "";
+            if (data.options && _.isArray(data.options) && data.options.length > 0) {
+              let optionsTableParametersString = ""
+              _.each(data.options, (option) => {
+                optionsTableParametersString += `
+                  <tr>
+                    <td>${option.Prop}</td>
+                    <td>${option.Type}</td>
+                    <td>${option.Default}</td>
+                    <td>${option.Description}</td>
+                  </tr>
+                `;
+              });
+              optionsTableHtmlString += `
+                <div id="node-turf-info-modal-options-header">
+                  <br>
+                  <h3>Options</h3>
+                </div>
+                <div id="node-turf-info-modal-options">
+                  <table id="node-turf-info-modal-options-table">
+                    <tr>
+                      <th>Prop</th><th>Type</th><th>Default</th><th>Description</th>
+                      ${optionsTableParametersString}
+                    </tr>
+                  </table>
+                </div>
+              `;
+            }
+
+            // Returns
+            let returnsTableHtmlString = "";
+            if (data.returns && _.isArray(data.returns) && data.returns.length > 0) {
+              let returnsTableParametersString = ""
+              _.each(data.returns, (ret) => {
+                returnsTableParametersString += `
+                  <tr>
+                    <td>${ret.type}</td>
+                    <td>${ret.desc}</td>
+                  </tr>
+                `;
+              });
+              returnsTableHtmlString = `
+                <div id="node-turf-info-modal-returns-header">
+                  <br>
+                  <h3>Returns</h3>
+                </div>
+                <div id="node-turf-info-modal-returns">
+                  <table id="node-turf-info-modal-returns-table">
+                    <tr>
+                      <th>Type</th><th>Description</th>
+                      ${returnsTableParametersString}
+                    </tr></table>
+                </div>
+              `
+            }
+
+            // Create Modal Content
+            const modalContent = $(`
+              <h1 id="node-turf-info-modal-header" class="red-ui-help-title">
+                <a href="https://turfjs.org/docs/#${data.name}" target="_blank">${data.name} <i class="fa fa-external-link" aria-hidden="true"></i></a>  
+              </h1>
+              <div style="height: 6px"></div>
+              <h2>Description</h2>
+              <div id="node-turf-info-modal-description">
+                <div>${data.description}</div>
+              </div>
+              ${argumentsTableHtmlString}
+              ${optionsTableHtmlString}
+              ${returnsTableHtmlString}
+            `);
+
+            return modalContent
+          }
+
+          // Help Button
+          const helpButton = $(`#node-turf-info-button`);
+
+          // Remove existing Event Listener
+          helpButton.off("click");
+      
+          // Add Event Listener
+          helpButton.on("click", function(e) {             
+            // Clear Content if exists
+            $(`#${modalId}`).remove();
+            nodeTurfModalContainer.empty();
+
+            // Generate Content
+            const nodeTurfInfoModalId = "node-turf-info-modal";
+            const modalEl = $(`<div id="${modalId}" class="modal red-ui-editor red-ui-help"></div>`);
+            nodeTurfModalContainer.append(modalEl);
+            const modalContent = generateInfoModalContent();
+            modalEl.append(modalContent);
+
+            $(`#${modalId}`).modal();
+            return false;
+          });
+
+          // Helper Function to generate parameter info modal content
+          function generateParameterInfoModalContent(paramIndex, paramType, data) {
+            let modalContentHtmlString = "";
+
+            // Parameter
+            if (data[0][paramType] && data[0][paramType][paramIndex]) {
+              const paramInfo = data[0][paramType][paramIndex];
+              const paramInfoArgument = paramInfo.Argument || paramInfo.Prop;
+              const paramInfoDescription = paramInfo.Description;
+              const paramInfoType = paramInfo.Type;
+              const typeInfo = (paramType === 'options') ? 'Option' : 'Argument';
+              modalContentHtmlString += `
+                <h1 id="node-turf-parameter-info-modal-header" class="red-ui-help-title">${paramInfoArgument}</h1>
+                <div id="node-turf-parameter-info-modal-description">
+                  <table id="node-turf-parameter-info-modal-description-table">
+                    <tr><th>Type</th><th>Description</th>
+                      <tr>
+                        <td>${paramInfoType}</td>
+                        <td>${paramInfoDescription}</td>
+                      </tr>
+                  </table>
+                </div>
+              `;
+            }
+
+            // Create Modal Content
+            const modalContent = $(modalContentHtmlString);
+            return modalContent
+          }
+
+          // Parameter Help Buttons
+          const parameterHelpButtons = $(".parameter-help-button")
+
+          // Remove existing Event Listener
+          parameterHelpButtons.off("click");
+          
+          // Add Event Listener
+          parameterHelpButtons.on("click", function(e) {
+            // Clear Content if exists
+            $(`#${modalId}`).remove();
+            nodeTurfModalContainer.empty();
+
+            // Generate Content
+            const modalEl = $(`<div id="${modalId}" class="modal red-ui-editor red-ui-help"></div>`);
+            nodeTurfModalContainer.append(modalEl);
+
+            // Get Data
+            const paramIndex = $(this).data("param-index");
+            const paramType = $(this).data("param-type");
+            const data = selectNode.select2('data');
+            const modalContent = generateParameterInfoModalContent(paramIndex, paramType, data);
+            // Append Content
+            modalEl.append(modalContent);
+
+            // Open Modal
+            $(`#${modalId}`).modal();
+            return false;
+          });
+        });
+        
+
+        // Init State
+        selectNode.val(node["turf-module"]).trigger("change").trigger({
+          type: "select2:select",
+          params: {
+            data: _.find(_.flatten(_.map(config, y => y.children)), x => (x.id + "") === node["turf-module"])
+          }
+        });
+
+      }
+    });
+  })();  
+</script>
+
+
+
+<script type="text/html" data-template-name="turf-module">
+  <div class="form-row">
+    <label class="node-input-label" for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+  </div>
+  <div class="form-row">
+    <label class="node-input-label" for="node-input-turf-module"><i class="fa fa-wrench"></i> Turf Module</label>
+    <select id="node-input-turf-module"></select>
+    <button data-modal="#node-turf-info-modal" id="node-turf-info-button" type="button" class="red-ui-button"><i class="fa fa-info"></i></button>
+  </div>
+
+  <!-- Parameter Container -->
+  <div id="node-turf-parameter-container">
+    <h3 id="node-turf-arguments-header">Arguments</h3>
+    <div id="node-turf-arguments-container"></div>
+    <h3 id="node-turf-options-header">Options</h3>
+    <div id="node-turf-options-container"></div>
+    <h3>Helpful Links</h3>
+    <ul>
+      <li><a href="https://geojson.io/" target="_blank">https://geojson.io/ <i class="fa fa-external-link" aria-hidden="true"></i></a></a> (Create GeoJSON)</li>
+      <li><a href="https://geojsonlint.com/" target="_blank">https://geojsonlint.com/ <i class="fa fa-external-link" aria-hidden="true"></i></a></a> (Validate GeoJSON)</li>
+      <li><a href="https://geojson.org/" target="_blank">https://geojson.org/ <i class="fa fa-external-link" aria-hidden="true"></i></a></a> (GeoJSON Specification)</li>
+      <li><a href="https://turfjs.org/" target="_blank">https://turfjs.org/ <i class="fa fa-external-link" aria-hidden="true"></i></a></a> (TurfJS Specification)</li>
+    </ul> 
+  </div>
+
+  <!-- Modal Container -->
+  <div id="node-turf-modal-container"></div>
+</script>
+
+<script type="text/html" data-help-name="turf-module">
+  <p>This node exposes all the awesome features of the <a target="_blank" href="https://turfjs.org/">Turf</a> Library for spatial analysis. This is a complete rework of  the <a target="_blank" href="https://flows.nodered.org/node/node-red-contrib-turf"><code>node-red-contrib-turf</code></a> node. <code>node-red-contrib-turf-module</code> offers a complete UI for every turf module and allows to wire differnt turf modules without the need of extra function nodes.</p>
+  <br>
+  <h4>About Turf:</h4>Turf includes traditional spatial operations, helper functions for creating GeoJSON data and data classification and statistics tools. 
+  <br>
+  <br>
+  <p>Turf uses GeoJSON for all geographic data. Turf expects the data to be standard WGS84 longitude, latitude coordinates. Check out <a target="_blank" href="geojson.io">geojson.io</a> for a tool to easily create this data. <br> Most Turf modules work with GeoJSON features. These are pieces of data that represent a collection of properties (ie: population, elevation, zipcode, etc.) along with a geometry. GeoJSON has several geometry types such as:</p>
+  <ul>
+    <li>Point</li>
+    <li>LineString</li>
+    <li>Polygon</li>
+  </ul>
+  <br>
+  <h4>How to use the node:</h4>
+  Select the turf module you want to use from the select input box. Based on your selection the arguments and options are displayed. You can always lookup the official documentation of the current selected module, its parameters and options by clicking the <code>info button</code>.
+  <br>
+  <br>
+  <h4>Setting arguments and options:</h4>
+  An argument or option can have different inputs (<code>string</code>, <code>number</code>, <code>boolean</code>, <code>msg</code>, <code>json</code>, <code>flow</code>, <code>global</code>, <code>turf</code>). One special type is the <code>turf</code> type which allowes to use the input(s) from incomming turf nodes. Its value needs to be the name of the incomming turf node. As a lookup criteria the property <code>msg.turfNodeName</code> is used. So it also possible to use a custom function node with a <code>msg.turfNodeName</code> as input. The value is set by the <code>msg.payload</code>.
+  <br>
+  For turf modules with callback functions (e.g.: coord-reduce) only <code>msg</code>, <code>flow</code>, <code>global</code> types are allowed. The value of the msg or flow/global variable has to be the callback function.
+  <br>
+  For the inital creation of geojson data the <code>json</code> type can be used. Be aware of using the right GeoJSON Feature-Type though.
+  <br>
+  <br>
+  <h4>Helpful Links</h4>
+  <ul>
+    <li><a href="https://geojson.io/" target="_blank">https://geojson.io/ <i class="fa fa-external-link" aria-hidden="true"></i></a></a> (Create GeoJSON)</li>
+    <li><a href="https://geojsonlint.com/" target="_blank">https://geojsonlint.com/ <i class="fa fa-external-link" aria-hidden="true"></i></a></a> (Validate GeoJSON)</li>
+    <li><a href="https://geojson.org/" target="_blank">https://geojson.org/ <i class="fa fa-external-link" aria-hidden="true"></i></a></a> (GeoJSON Specification)</li>
+    <li><a href="https://turfjs.org/" target="_blank">https://turfjs.org/ <i class="fa fa-external-link" aria-hidden="true"></i></a></a> (TurfJS Specification)</li>
+  </ul>
+</script>
