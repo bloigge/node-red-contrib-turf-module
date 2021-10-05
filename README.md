@@ -226,18 +226,6 @@ For the inital creation of geojson data the `json` type can be used. Be aware of
         "wires": []
     },
     {
-        "id": "558320a17b2a9c65",
-        "type": "turf",
-        "z": "f679ac51893aafbf",
-        "fn": "",
-        "name": "",
-        "x": 120,
-        "y": 1320,
-        "wires": [
-            []
-        ]
-    },
-    {
         "id": "413ef37a9313cb91",
         "type": "function",
         "z": "f679ac51893aafbf",
@@ -641,7 +629,7 @@ For the inital creation of geojson data the `json` type can be used. Be aware of
             },
             "module": "buffer"
         },
-        "turf-argument-0": "{       \"type\": \"Feature\",       \"properties\": {},       \"geometry\": {         \"type\": \"Point\",         \"coordinates\": [           10.997314453125,           50.56230444080573         ]       }     }",
+        "turf-argument-0": "{\"type\":\"Feature\",\"properties\":{},\"geometry\":{\"type\":\"Point\",\"coordinates\":[10.997314453125,50.56230444080573]}}",
         "turf-argument-1": "radius",
         "turf-argument-2": null,
         "turf-argument-3": null,
