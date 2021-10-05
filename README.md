@@ -562,7 +562,7 @@ For the inital creation of geojson data the `json` type can be used. Be aware of
                 },
                 "turf-argument-1": {
                     "p": "turf-argument-1",
-                    "vt": "flow",
+                    "vt": "msg",
                     "n": "callback"
                 },
                 "turf-argument-2": {
