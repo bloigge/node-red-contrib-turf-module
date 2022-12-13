@@ -42,6 +42,24 @@ module.exports = function(RED) {
       }
 
       // Helper
+
+      // Hack for finding nested objects in string with array notation (e.g.: [0])
+      // https://stackoverflow.com/questions/6491463/accessing-nested-javascript-objects-and-arrays-by-string-path
+      Object.getValueByString = function(o, s) {
+        s = s.replace(/\[(\w+)\]/g, '.$1');
+        s = s.replace(/^\./, '');
+        const a = s.split('.');
+        for (let i = 0, n = a.length; i < n; ++i) {
+            const k = a[i];
+            if (k in o) {
+                o = o[k];
+            } else {
+                return;
+            }
+        }
+        return o;
+      }
+
       function prepareParameter(param, msg) {
         // Turf Node Value
         if (param.vt === "turf" && msg.turfNodeName === param.value) {
@@ -50,9 +68,27 @@ module.exports = function(RED) {
         }
 
         // Message Value
-        if (param.vt === "msg" && !_.isUndefined(msg[param.value])) {
-          param.data = msg[param.value];
-          return param
+        if (param.vt === "msg") {
+          let val = undefined;
+          try {
+            val = Object.getValueByString(msg, param.value);
+            if (_.isUndefined(val)) {
+              throw Error();
+            }
+          } catch (err) {
+            const errorText = `Missing variable: ${param.value}`;
+            const error = new Error(errorText); 
+            node.status({
+              fill: "red",
+              shape: "dot",
+              text: "error"
+            });
+            node.error(error, errorText);
+          }
+          if (!_.isUndefined(val)) {
+            param.data = val;
+            return param
+          }
         }
 
         // Global Value
