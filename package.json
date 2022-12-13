@@ -24,5 +24,9 @@
   "devDependencies": {
     "request": "^2.88.2",
     "request-promise-native": "^1.0.9"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bloigge/node-red-contrib-turf-module"
   }
 }
