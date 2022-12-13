@@ -1,5 +1,7 @@
 # node-red-contrib-turf-module
 
+A node which exposes all the awesome features of the [Turf](https://turfjs.org/) Library for spatial analysis.
+
 #### About:
 This node exposes all the awesome features of the [Turf](https://turfjs.org/) Library for spatial analysis. This is a complete rework of the [`node-red-contrib-turf`](https://flows.nodered.org/node/node-red-contrib-turf) node. `node-red-contrib-turf-module` offers a complete UI for every turf module and allows to wire differnt turf modules without the need of extra function nodes.
 
